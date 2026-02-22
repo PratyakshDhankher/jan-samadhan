@@ -83,7 +83,7 @@ export default function AdminDashboard() {
                             <p className="text-3xl font-bold text-navy">{grievances.length}</p>
                         </div>
                         <div className="bg-red-50 p-4 rounded-lg">
-                            <p className="text-sm text-gray-500">High Urgency (>7)</p>
+                            <p className="text-sm text-gray-500">High Urgency (7+)</p>
                             <p className="text-3xl font-bold text-red-600">
                                 {grievances.filter(g => g.urgency > 7).length}
                             </p>

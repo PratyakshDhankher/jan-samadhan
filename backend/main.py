@@ -15,7 +15,7 @@ from bson import ObjectId
 # Internal modules
 # Try-except block for local running vs docker structure if needed, but assuming standard structure
 from models import User, Grievance
-from auth import verify_google_token, create_access_token, get_current_user
+from auth import verify_google_token, create_access_token, get_current_user, hash_password, verify_password
 import ai_engine
 
 # App & Config
@@ -69,6 +69,33 @@ async def google_login(token: str = Form(...)):
         return {"access_token": access_token, "token_type": "bearer", "role": role, "user_name": name}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/auth/register", status_code=201)
+async def register(email: str = Form(...), password: str = Form(...), full_name: str = Form(...)):
+    existing = await db.users.find_one({"email": email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+    user_data = User(
+        email=email,
+        full_name=full_name,
+        hashed_password=hash_password(password),
+        role="citizen"
+    )
+    await db.users.insert_one(user_data.model_dump(by_alias=True, exclude={"id"}))
+    access_token = create_access_token(data={"sub": email, "role": "citizen"})
+    return {"access_token": access_token, "token_type": "bearer", "role": "citizen", "user_name": full_name}
+
+@app.post("/auth/login")
+async def login(email: str = Form(...), password: str = Form(...)):
+    user = await db.users.find_one({"email": email})
+    if not user or not user.get("hashed_password"):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not verify_password(password, user["hashed_password"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    role = user.get("role", "citizen")
+    access_token = create_access_token(data={"sub": email, "role": role})
+    return {"access_token": access_token, "token_type": "bearer", "role": role, "user_name": user.get("full_name", "")}
+
 
 # Grievance Routes
 @app.post("/submit", status_code=201)

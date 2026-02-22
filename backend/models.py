@@ -9,6 +9,7 @@ class User(BaseModel):
     id: Optional[PyObjectId] = Field(alias="_id", default=None)
     email: EmailStr
     full_name: str
+    hashed_password: Optional[str] = None  # None for Google-OAuth-only users
     role: str = "citizen"  # citizen, admin
 
     class Config:

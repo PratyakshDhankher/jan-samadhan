@@ -12,3 +12,5 @@ python-jose[cryptography]
 slowapi
 requests
 pillow
+passlib[bcrypt]
+bcrypt
