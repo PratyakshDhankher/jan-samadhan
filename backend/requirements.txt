@@ -13,5 +13,5 @@ slowapi
 requests
 pillow
 passlib[bcrypt]
-bcrypt
+bcrypt==4.0.1
 pydantic[email]
