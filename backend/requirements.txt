@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+pymongo
+motor
+python-multipart
+pytesseract
+langchain-google-genai
+langchain
+pydantic
+pydantic-settings
+python-jose[cryptography]
+slowapi
+requests
+pillow
