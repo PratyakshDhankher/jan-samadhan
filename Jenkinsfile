@@ -20,8 +20,7 @@ pipeline {
 
         stage('Deploy Containers') {
             steps {
-                  echo 'Cleaning old containers...'
-
+                echo 'Cleaning old containers...'
                 bat '''
                 docker-compose down || echo No containers to stop
                 docker rm -f jan_samadhan_db jan_samadhan_backend jan_samadhan_frontend || echo Containers not found
@@ -30,7 +29,6 @@ pipeline {
                 echo 'Starting fresh containers...'
                 bat 'docker-compose up -d --build'
             }
-        }
         }
 
         stage('Verify Deployment') {
