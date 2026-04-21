@@ -271,5 +271,16 @@ async def chat(
     message: str = Form(...),
     current_user_email: str = Depends(get_current_user)
 ):
-    response = get_chatbot_response(message)
+    user = await db.users.find_one({"email": current_user_email})
+
+    grievances = await db.grievances.find(
+        {"citizen_id": str(user["_id"])}
+    ).to_list(length=5)
+
+    context = "\n".join([
+        g.get("ai_summary", "") for g in grievances
+    ])
+
+    response = get_chatbot_response(message, context)
+
     return {"response": response}
