@@ -7,6 +7,7 @@ import GrievanceForm from './components/GrievanceForm';
 import AdminDashboard from './components/AdminDashboard';
 import LoginPage from './components/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import Chatbot from "./components/Chatbot";
 
 // Replace with your actual Google OAuth Client ID
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID';
@@ -48,6 +49,7 @@ function App() {
                                         <AdminDashboard />
                                     </ProtectedRoute>
                                 } />
+                                 <Route path="/chat" element={<Chatbot />} />
                             </Routes>
                         </main>
                         <footer className="bg-navy text-white text-center py-6">
