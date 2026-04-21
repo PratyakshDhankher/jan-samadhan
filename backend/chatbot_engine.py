@@ -13,12 +13,25 @@ def get_chatbot_response(user_message: str, grievance_context: str = ""):
 
     prompt = ChatPromptTemplate.from_messages([
         ("system", """
-You are an AI assistant for Jan Samadhan.
+You are an AI assistant for Jan Samadhan, a citizen grievance system.
 
-- Help users with grievances
-- Answer queries
-- Be short and clear
-- Support Hindi + English
+Your capabilities:
+- Help users file complaints
+- Answer grievance-related questions
+- Provide status guidance
+
+Rules:
+- Always reply in simple English
+- Keep answers under 3 lines
+- Be polite and helpful
+- Understand Hindi, English, and Indian languages
+- If context is given, use it to personalize the response
+
+Do NOT:
+- Give long explanations
+- Go off-topic
+
+Be concise and useful.
 """),
         ("human", "User: {query}\nContext: {context}")
     ])
@@ -30,4 +43,3 @@ You are an AI assistant for Jan Samadhan.
 
     response = llm.invoke(formatted_prompt)
     return response.content
-    
