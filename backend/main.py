@@ -8,6 +8,7 @@ import os
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorGridFSBucket
 from starlette.concurrency import run_in_threadpool
+from chatbot_engine import get_chatbot_response
 
 # Internal modules
 from models import User, Grievance
@@ -263,3 +264,12 @@ def health():
 @app.get("/")
 def root():
     return {"message": "Jan Samadhan API is running"}
+
+
+@app.post("/chat")
+async def chat(
+    message: str = Form(...),
+    current_user_email: str = Depends(get_current_user)
+):
+    response = get_chatbot_response(message)
+    return {"response": response}
