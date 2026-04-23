@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../api/axios'; // 🟢 Uses centralized API
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
   Tooltip, Legend, ResponsiveContainer
@@ -7,7 +7,6 @@ import {
 import { Loader2, CheckCircle, Clock, AlertTriangle, BarChart2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const PIE_COLORS = ['#003366', '#FF9933', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 const URGENCY_COLORS = {
@@ -26,16 +25,15 @@ export default function AdminDashboard() {
   const [search, setSearch] = useState('');
   const [updating, setUpdating] = useState(null);
 
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
   useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     setLoading(true);
     try {
+      // 🟢 Uses the new api instance
       const [gRes, sRes] = await Promise.all([
-        axios.get(`${API_URL}/grievances`, { headers }),
-        axios.get(`${API_URL}/stats`, { headers }),
+        api.get('/admin/view'), // 🟢 Hits the correct admin route
+        api.get('/stats'),
       ]);
       setGrievances(gRes.data);
       setStats(sRes.data);
@@ -52,7 +50,10 @@ export default function AdminDashboard() {
     try {
       const form = new FormData();
       form.append('status', newStatus);
-      await axios.patch(`${API_URL}/grievances/${id}`, form, { headers });
+      
+      // 🟢 Uses the new api instance
+      await api.patch(`/grievances/${id}`, form);
+      
       setGrievances(prev =>
         prev.map(g => g._id === id ? { ...g, status: newStatus } : g)
       );
@@ -82,7 +83,7 @@ export default function AdminDashboard() {
       return (
         g.category?.toLowerCase().includes(q) ||
         g.department?.toLowerCase().includes(q) ||
-        g.ai_summary?.toLowerCase().includes(q)
+        g.english_summary?.toLowerCase().includes(q) // 🟢 Updated schema name
       );
     });
 
@@ -201,7 +202,8 @@ export default function AdminDashboard() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-navy">{g.category || 'Unknown'}</p>
                     <p className="text-xs text-gray-500 truncate">
-                      {g.ai_summary || g.raw_text?.slice(0, 80) || '—'}
+                      {/* 🟢 Updated schema names */}
+                      {g.english_summary || g.original_text?.slice(0, 80) || '—'}
                     </p>
                   </div>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-bold flex-shrink-0 ${getUrgencyBadge(g.urgency)}`}>
@@ -264,8 +266,9 @@ export default function AdminDashboard() {
                   <tr key={g._id} className="hover:bg-gray-50 transition">
                     <td className="px-6 py-4 font-medium text-navy text-sm">{g.category || 'N/A'}</td>
                     <td className="px-6 py-4 text-gray-500 text-xs">{g.department || 'N/A'}</td>
-                    <td className="px-6 py-4 text-gray-500 text-xs max-w-xs truncate" title={g.ai_summary}>
-                      {g.ai_summary || g.raw_text?.slice(0, 60) || '—'}
+                    <td className="px-6 py-4 text-gray-500 text-xs max-w-xs truncate" title={g.english_summary}>
+                      {/* 🟢 Updated schema names */}
+                      {g.english_summary || g.original_text?.slice(0, 60) || '—'}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-bold ${getUrgencyBadge(g.urgency)}`}>
@@ -362,7 +365,8 @@ export default function AdminDashboard() {
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-red-700 text-sm">{g.category} · {g.department}</p>
                       <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
-                        {g.ai_summary || g.raw_text?.slice(0, 120) || '—'}
+                        {/* 🟢 Updated schema names */}
+                        {g.english_summary || g.original_text?.slice(0, 120) || '—'}
                       </p>
                     </div>
                     <button

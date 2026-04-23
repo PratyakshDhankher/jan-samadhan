@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, EmailStr, BeforeValidator
-from typing import Optional, List, Annotated
+from typing import Optional, Annotated
 from datetime import datetime
 
 # Helper for MongoDB ObjectId
@@ -26,12 +26,12 @@ class Grievance(BaseModel):
     id: Optional[PyObjectId] = Field(alias="_id", default=None)
     citizen_id: str
     image_id: Optional[str] = None  # GridFS ID reference
-    raw_text: Optional[str] = None
-    ai_summary: Optional[str] = None
-    category: Optional[str] = None
-    department: Optional[str] = None
-    urgency: int = Field(default=1, ge=1, le=10)
-    status: str = "Pending"  # Pending, Resolved
+    original_text: Optional[str] = None
+    english_summary: Optional[str] = None
+    category: Optional[str] = "Uncategorized"
+    department: Optional[str] = "General"
+    urgency: int = Field(default=5, ge=1, le=10)
+    status: str = "Pending"  # Pending, In-Progress, Resolved
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Config:

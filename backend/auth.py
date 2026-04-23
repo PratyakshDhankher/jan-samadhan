@@ -13,9 +13,15 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+# ------------------- AUTH SCHEMES -------------------
+# 1. Standard Scheme (For Citizens logging in via /auth/login)
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
-# Password hashing
+# 2. Admin Scheme (For Admins logging in via /auth/admin/login)
+admin_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/admin/login")
+
+
+# ------------------- PASSWORD HASHING -------------------
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def hash_password(plain_password: str) -> str:
@@ -24,6 +30,8 @@ def hash_password(plain_password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
+
+# ------------------- TOKEN GENERATION & VERIFICATION -------------------
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
@@ -52,6 +60,10 @@ async def verify_google_token(token: str):
         print(f"Token verification error: {e}")
         raise HTTPException(status_code=400, detail="Token verification failed")
 
+
+# ------------------- DEPENDENCIES -------------------
+
+# Dependency for Standard/Citizen Users
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -65,4 +77,25 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             raise credentials_exception
     except JWTError:
         raise credentials_exception
+    return email
+
+# Dependency for Strict Admin Verification
+async def get_current_admin(token: str = Depends(admin_oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate admin credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        role: str = payload.get("role")
+        
+        # STRICT CHECK: Must be an admin
+        if email is None or role != "admin":
+            raise credentials_exception
+            
+    except JWTError:
+        raise credentials_exception
+        
     return email

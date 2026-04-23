@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, Form, File, UploadFile, Req
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi import status
 
 from typing import Optional, List
 import os
@@ -12,7 +13,8 @@ from chatbot_engine import get_chatbot_response
 
 # Internal modules
 from models import User, Grievance
-from auth import verify_google_token, create_access_token, get_current_user, hash_password, verify_password
+# 🟢 Added get_current_admin to imports
+from auth import verify_google_token, create_access_token, get_current_user, get_current_admin, hash_password, verify_password
 import ai_engine
 
 # ------------------- APP CONFIG -------------------
@@ -21,10 +23,17 @@ app = FastAPI(title="Jan Samadhan API")
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://db:27017")
 DB_NAME = "jan_samadhan"
 
+
 # ------------------- CORS -------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    # 🟢 FIX: Explicitly list your frontend URLs instead of "*"
+    allow_origins=[
+        "http://localhost:3000", 
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,7 +63,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         content={"error": "Validation Error", "detail": exc.errors()}
     )
 
-# ------------------- AUTH ROUTES -------------------
+# ------------------- CITIZEN AUTH ROUTES -------------------
 @app.post("/auth/google")
 async def google_login(token: str = Form(...)):
     try:
@@ -127,6 +136,28 @@ async def login(email: str = Form(...), password: str = Form(...)):
         "user_name": user.get("full_name", "")
     }
 
+# ------------------- ADMIN AUTH ROUTES -------------------
+# 🟢 NEW: Dedicated Admin Login Endpoint
+@app.post("/auth/admin/login")
+async def admin_login(email: str = Form(...), password: str = Form(...)):
+    user = await db.users.find_one({"email": email})
+
+    # Strict check: Even if the password is right, reject if not an admin
+    if not user or not user.get("hashed_password") or user.get("role") != "admin":
+        raise HTTPException(status_code=401, detail="Invalid admin credentials")
+
+    if not verify_password(password, user["hashed_password"]):
+        raise HTTPException(status_code=401, detail="Invalid admin credentials")
+
+    access_token = create_access_token(data={"sub": email, "role": "admin"})
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "role": "admin",
+        "user_name": user.get("full_name", "")
+    }
+
 # ------------------- GRIEVANCE SUBMIT -------------------
 @app.post("/submit", status_code=201)
 async def submit_grievance(
@@ -168,27 +199,37 @@ async def submit_grievance(
         print("AI failed:", e)
 
     # SAVE DATA
+    category_clean = analysis_result.category.replace('"', '').strip() if analysis_result else "Uncategorized"
+    assigned_dept = analysis_result.department if analysis_result else "General Administration"
+    
     grievance_data = Grievance(
-        citizen_id=citizen_id,
+        citizen_id=citizen_id, 
         image_id=image_id,
-        raw_text=text,
-        status="pending",
-        category=analysis_result.category if analysis_result else "general",
+        original_text=text,
+        category=category_clean,
         urgency=analysis_result.urgency if analysis_result else 5,
-        ai_summary=analysis_result.english_summary if analysis_result else "",
-        department=analysis_result.department if analysis_result else "unassigned"
+        english_summary=analysis_result.english_summary if analysis_result else "Summary unavailable",
+        department=assigned_dept
     )
 
     result = await db.grievances.insert_one(
         grievance_data.model_dump(by_alias=True, exclude={"id"})
     )
 
+    # Fetch Department Info for UI
+    dept_info = ai_engine.DEPARTMENT_CONTACT_INFO.get(
+        assigned_dept, 
+        ai_engine.DEPARTMENT_CONTACT_INFO["General Administration"]
+    )
+
     return {
         "id": str(result.inserted_id),
         "message": "Grievance submitted successfully",
-        "ai_analysis": analysis_result.dict() if analysis_result else None
+        "ai_analysis": analysis_result.dict() if analysis_result else None,
+        "department_info": dept_info
     }
-# ------------------- GET GRIEVANCES -------------------
+
+# ------------------- GET CITIZEN GRIEVANCES -------------------
 @app.get("/grievances")
 async def get_grievances(
     current_user_email: str = Depends(get_current_user)
@@ -203,34 +244,41 @@ async def get_grievances(
         query = {"citizen_id": str(user["_id"])}
 
     cursor = db.grievances.find(query).sort("created_at", -1)
-    return await cursor.to_list(length=100)
+    grievances = await cursor.to_list(length=100)
+    
+    # 🟢 CRITICAL FIX: Convert MongoDB ObjectIds to strings
+    for g in grievances:
+        g["_id"] = str(g["_id"])
+        if "citizen_id" in g:
+            g["citizen_id"] = str(g["citizen_id"])
+        if g.get("image_id"):
+            g["image_id"] = str(g["image_id"])
+            
+    return grievances
 
-# ------------------- ADMIN VIEW -------------------
+# ------------------- ADMIN ROUTES -------------------
+# 🟢 Secured using Depends(get_current_admin)
 @app.get("/admin/view")
-async def admin_view(current_user_email: str = Depends(get_current_user)):
-    user = await db.users.find_one({"email": current_user_email})
-
-    if not user or user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-
+async def admin_view(current_admin_email: str = Depends(get_current_admin)):
     cursor = db.grievances.find().sort("created_at", -1)
-    return await cursor.to_list(length=200)
+    grievances = await cursor.to_list(length=200)
+    
+    # 🟢 CRITICAL FIX: Convert MongoDB ObjectIds to strings
+    for g in grievances:
+        g["_id"] = str(g["_id"])
+        if "citizen_id" in g:
+            g["citizen_id"] = str(g["citizen_id"])
+        if g.get("image_id"):
+            g["image_id"] = str(g["image_id"])
+            
+    return grievances
 
-# ------------------- UPDATE STATUS -------------------
 @app.patch("/grievances/{grievance_id}")
 async def update_status(
     grievance_id: str,
     status: str = Form(...),
-    current_user_email: str = Depends(get_current_user)
+    current_admin_email: str = Depends(get_current_admin) # 🟢 Secured!
 ):
-    user = await db.users.find_one({"email": current_user_email})
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    if user.get("role") not in ["admin", "department"]:
-        raise HTTPException(status_code=403, detail="Not authorized")
-
     result = await db.grievances.update_one(
         {"_id": ObjectId(grievance_id)},
         {"$set": {"status": status}}
@@ -241,9 +289,8 @@ async def update_status(
 
     return {"message": "Status updated successfully"}
 
-# ------------------- STATS -------------------
 @app.get("/stats")
-async def get_stats(current_user_email: str = Depends(get_current_user)):
+async def get_stats(current_admin_email: str = Depends(get_current_admin)): # 🟢 Secured!
     pipeline = [
         {"$group": {"_id": "$category", "count": {"$sum": 1}}}
     ]
@@ -255,32 +302,57 @@ async def get_stats(current_user_email: str = Depends(get_current_user)):
         for s in stats
     ]
 
-# ------------------- HEALTH -------------------
+# ------------------- HEALTH & MISC -------------------
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
-# ------------------- ROOT -------------------
 @app.get("/")
 def root():
     return {"message": "Jan Samadhan API is running"}
-
 
 @app.post("/chat")
 async def chat(
     message: str = Form(...),
     current_user_email: str = Depends(get_current_user)
 ):
-    user = await db.users.find_one({"email": current_user_email})
+    try:
+        user = await db.users.find_one({"email": current_user_email})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-    grievances = await db.grievances.find(
-        {"citizen_id": str(user["_id"])}
-    ).to_list(length=5)
+        citizen_id = str(user["_id"])
 
-    context = "\n".join([
-        g.get("ai_summary", "") for g in grievances
-    ])
+        grievances_cursor = db.grievances.find(
+            {"citizen_id": citizen_id}
+        ).sort("_id", -1).limit(3)
 
-    response = get_chatbot_response(message, context)
+        grievances = await grievances_cursor.to_list(length=3)
 
-    return {"response": response}
+        grievance_context = ""
+        for g in grievances:
+            grievance_context += (
+                f"- {g.get('original_text', '')} "
+                f"(Status: {g.get('status', 'unknown')}, "
+                f"Dept: {g.get('department', 'unknown')})\n"
+            )
+
+        context = f"""
+User Name: {user.get('full_name', '')}
+
+Recent Grievances:
+{grievance_context if grievance_context else "No previous grievances"}
+"""
+
+        ai_response = get_chatbot_response(
+            user_message=message,
+            grievance_context=context
+        )
+
+        return {"response": ai_response}
+
+    except Exception as e:
+        print("Chatbot error:", e)
+        return {
+            "response": "⚠️ AI service unavailable. Please try again."
+        }

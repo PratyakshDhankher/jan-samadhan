@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
-import { Loader2, CheckCircle, Clock, AlertTriangle, FileText } from 'lucide-react';
+import api from '../api/axios'; // 🟢 Uses centralized API
+import { Loader2, CheckCircle, Clock, FileText } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 function GrievanceCard({ g }) {
   const urgencyClass = g.urgency >= 8
@@ -39,7 +37,8 @@ function GrievanceCard({ g }) {
       </div>
 
       <p className="text-sm text-gray-600 leading-relaxed border-l-4 border-blue-100 pl-3 mb-3">
-        {g.ai_summary || g.raw_text?.slice(0, 120) || 'No summary available.'}
+        {/* 🟢 Updated schema names */}
+        {g.english_summary || g.original_text?.slice(0, 120) || 'No summary available.'}
       </p>
 
       <div className="flex justify-between items-center">
@@ -55,16 +54,15 @@ function GrievanceCard({ g }) {
 }
 
 export default function CitizenDashboard() {
-  const { token, user } = useAuth();
+  const { user } = useAuth();
   const [grievances, setGrievances] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchGrievances = async () => {
       try {
-        const res = await axios.get(`${API_URL}/grievances`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // 🟢 Uses the new api instance
+        const res = await api.get('/grievances');
         setGrievances(res.data);
       } catch (e) {
         console.error('Failed to fetch grievances', e);
@@ -73,7 +71,7 @@ export default function CitizenDashboard() {
       }
     };
     fetchGrievances();
-  }, [token]);
+  }, []);
 
   const pending = grievances.filter(g => g.status === 'Pending');
   const resolved = grievances.filter(g => g.status === 'Resolved');

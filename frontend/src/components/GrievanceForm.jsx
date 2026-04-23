@@ -1,9 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
+import api from '../api/axios'; 
 import { Upload, FileText, Loader2, CheckCircle, AlertCircle, Mic, MicOff, Square } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const browserSupportsVoice = !!SpeechRecognition;
@@ -29,7 +27,7 @@ export default function GrievanceForm() {
   const [fileName, setFileName] = useState('');
   const [file, setFile] = useState(null);
   const [isPending, setIsPending] = useState(false);
-  const [result, setResult] = useState(null); // { success, message, analysis }
+  const [result, setResult] = useState(null); // { success, message, analysis, department_info }
 
   // Voice state
   const [isListening, setIsListening] = useState(false);
@@ -38,7 +36,6 @@ export default function GrievanceForm() {
   const [voiceDone, setVoiceDone] = useState(false);
   const recognitionRef = useRef(null);
 
-  // Inject mic animation styles once
   useEffect(() => {
     if (document.getElementById('js-voice-styles')) return;
     const style = document.createElement('style');
@@ -104,13 +101,18 @@ export default function GrievanceForm() {
       const formData = new FormData();
       if (text) formData.append('text', text);
       if (file) formData.append('file', file);
-      const res = await axios.post(`${API_URL}/submit`, formData, {
+      
+      const res = await api.post('/submit', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${token}`,
         },
       });
-      setResult({ success: true, message: res.data.message, analysis: res.data.ai_analysis });
+      setResult({ 
+        success: true, 
+        message: res.data.message, 
+        analysis: res.data.ai_analysis,
+        department_info: res.data.department_info
+      });
     } catch (err) {
       setResult({ success: false, message: err.response?.data?.detail || 'Submission failed. Please try again.' });
     } finally {
@@ -145,6 +147,7 @@ export default function GrievanceForm() {
           <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-green-800 mb-2">Grievance Submitted!</h3>
           <p className="text-green-600 mb-4">{result.message}</p>
+          
           {result.analysis && (
             <div className="text-left bg-white p-4 rounded border border-green-100 mt-4">
               <p className="font-semibold text-navy mb-2">AI Analysis:</p>
@@ -152,10 +155,48 @@ export default function GrievanceForm() {
                 <li><span className="font-medium">Category:</span> {result.analysis.category}</li>
                 <li><span className="font-medium">Urgency:</span> {result.analysis.urgency}/10</li>
                 <li><span className="font-medium">Department:</span> {result.analysis.department}</li>
-                <li><span className="font-medium">Summary:</span> {result.analysis.english_summary}</li>
               </ul>
             </div>
           )}
+
+          {/* 🟢 NEXT STEPS & CONTACT INFO UI */}
+          {result.department_info && (
+            <div className="text-left bg-blue-50 p-5 rounded-lg border border-blue-100 mt-4 shadow-sm">
+              <h4 className="font-bold text-navy mb-3 flex items-center gap-2">
+                📌 Next Steps & Contact
+              </h4>
+              
+              <div className="space-y-3 text-sm text-gray-700">
+                <p>
+                  <span className="font-semibold text-navy">Expected Action:</span>{' '}
+                  {result.department_info.next_step}
+                </p>
+                <p>
+                  <span className="font-semibold text-navy">Resolution Timeline:</span>{' '}
+                  Within {result.department_info.sla}
+                </p>
+                
+                <div className="flex gap-3 mt-4 pt-3 border-t border-blue-200">
+                  <a 
+                    href={result.department_info.website} 
+                    target="_blank" 
+                    rel="noreferrer"
+                    className="flex-1 bg-white text-navy border border-navy text-center py-2 rounded font-semibold hover:bg-blue-50 transition"
+                  >
+                    {/* 🟢 DYNAMIC PORTAL NAME INJECTION */}
+                    🌐 Visit {result.department_info.portal_name || "Official Portal"}
+                  </a>
+                  <a 
+                    href={`tel:${result.department_info.helpline}`}
+                    className="flex-1 bg-navy text-white text-center py-2 rounded font-semibold hover:bg-opacity-90 transition"
+                  >
+                    📞 Call {result.department_info.helpline}
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={resetForm}
             className="mt-6 px-6 py-2 bg-navy text-white rounded-lg hover:bg-opacity-90 transition font-semibold"

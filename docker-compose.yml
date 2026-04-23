@@ -16,8 +16,9 @@ services:
       - "8000:8000"
     environment:
       - MONGO_URI=mongodb://db:27017
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      # Removed the Google variables here to prevent Docker conflicts
+    env_file:
+      - .env # This will automatically inject everything in your .env file
     depends_on:
       - db
     volumes:
@@ -30,7 +31,8 @@ services:
       - "3000:3000"
     environment:
       - REACT_APP_API_URL=http://localhost:8000
-      - REACT_APP_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+    env_file:
+      - .env # Let the frontend access the .env directly too
     depends_on:
       - backend
 

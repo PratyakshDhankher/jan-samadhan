@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
-import axios from 'axios';
+import api from '../api/axios'; // 🟢 Updated import
 import { useAuth } from '../context/AuthContext';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 // ---------- tiny helpers ----------
 const InputField = ({ label, id, type = 'text', value, onChange, placeholder }) => (
@@ -54,7 +52,9 @@ export default function LoginPage() {
         try {
             const form = new FormData();
             form.append('token', credentialResponse.credential);
-            const res = await axios.post(`${API}/auth/google`, form);
+            
+            // 🟢 Uses the new api instance
+            const res = await api.post('/auth/google', form);
             handleSuccess(res.data);
         } catch (e) {
             setError(e.response?.data?.detail || 'Google sign-in failed.');
@@ -77,9 +77,12 @@ export default function LoginPage() {
             const form = new FormData();
             form.append('email', email);
             form.append('password', password);
-            const url = mode === 'signup' ? `${API}/auth/register` : `${API}/auth/login`;
             if (mode === 'signup') form.append('full_name', name);
-            const res = await axios.post(url, form);
+            
+            // 🟢 Uses the new api instance
+            const endpoint = mode === 'signup' ? '/auth/register' : '/auth/login';
+            const res = await api.post(endpoint, form);
+            
             handleSuccess(res.data);
         } catch (e) {
             setError(e.response?.data?.detail || 'Authentication failed.');

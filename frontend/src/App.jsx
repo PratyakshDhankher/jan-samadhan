@@ -12,6 +12,7 @@ import Chatbot from "./components/Chatbot";
 // Replace with your actual Google OAuth Client ID
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID';
 
+
 function App() {
     return (
         <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
@@ -19,8 +20,11 @@ function App() {
                 <Router>
                     <div className="min-h-screen flex flex-col">
                         <Navbar />
+
                         <main className="flex-grow bg-gray-50">
                             <Routes>
+
+                                {/* HOME */}
                                 <Route path="/" element={
                                     <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4">
                                         <h1 className="text-5xl font-bold text-navy mb-6">Jan Samadhan</h1>
@@ -38,20 +42,30 @@ function App() {
                                         </div>
                                     </div>
                                 } />
+
+                                {/* LOGIN */}
                                 <Route path="/login" element={<LoginPage />} />
+
+                                {/* SUBMIT */}
                                 <Route path="/submit" element={
                                     <ProtectedRoute>
                                         <GrievanceForm />
                                     </ProtectedRoute>
                                 } />
+
+                                {/* ADMIN */}
                                 <Route path="/admin" element={
                                     <ProtectedRoute>
                                         <AdminDashboard />
                                     </ProtectedRoute>
                                 } />
-                                 <Route path="/chat" element={<Chatbot />} />
+
                             </Routes>
+
+                            {/* GLOBAL CHATBOT (VISIBLE EVERYWHERE) */}
+                            <Chatbot />
                         </main>
+
                         <footer className="bg-navy text-white text-center py-6">
                             <p className="text-sm opacity-70">© 2026 Jan Samadhan. All Rights Reserved.</p>
                         </footer>
