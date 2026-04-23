@@ -8,6 +8,34 @@ import AdminDashboard from './components/AdminDashboard';
 import LoginPage from './components/LoginPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import Chatbot from "./components/Chatbot";
+import CitizenDashboard from './components/CitizenDashboard';
+import { useAuth } from './context/AuthContext';
+
+function HomeRoute() {
+    const { user } = useAuth();
+
+    if (user) {
+        return <CitizenDashboard />;
+    }
+
+    return (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4">
+            <h1 className="text-5xl font-bold text-navy mb-6">Jan Samadhan</h1>
+            <p className="text-xl text-gray-600 max-w-2xl mb-8">
+                AI-Powered Public Grievance Redressal System.
+                Submit your grievance in any Indian language and let our AI route it to the right department.
+            </p>
+            <div className="flex gap-4">
+                <a href="/submit" className="px-8 py-3 bg-saffron text-white rounded-lg font-semibold shadow hover:bg-opacity-90 transition">
+                    Lodge Grievance
+                </a>
+                <a href="/login" className="px-8 py-3 bg-white text-navy border border-navy rounded-lg font-semibold hover:bg-gray-50 transition">
+                    Login / Admin
+                </a>
+            </div>
+        </div>
+    );
+}
 
 // Replace with your actual Google OAuth Client ID
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID';
@@ -24,24 +52,8 @@ function App() {
                         <main className="flex-grow bg-gray-50">
                             <Routes>
 
-                                {/* HOME */}
-                                <Route path="/" element={
-                                    <div className="flex flex-col items-center justify-center min-h-[80vh] text-center px-4">
-                                        <h1 className="text-5xl font-bold text-navy mb-6">Jan Samadhan</h1>
-                                        <p className="text-xl text-gray-600 max-w-2xl mb-8">
-                                            AI-Powered Public Grievance Redressal System.
-                                            Submit your grievance in any Indian language and let our AI route it to the right department.
-                                        </p>
-                                        <div className="flex gap-4">
-                                            <a href="/submit" className="px-8 py-3 bg-saffron text-white rounded-lg font-semibold shadow hover:bg-opacity-90 transition">
-                                                Lodge Grievance
-                                            </a>
-                                            <a href="/admin" className="px-8 py-3 bg-white text-navy border border-navy rounded-lg font-semibold hover:bg-gray-50 transition">
-                                                Admin Login
-                                            </a>
-                                        </div>
-                                    </div>
-                                } />
+                                {/* HOME — shows dashboard if logged in, landing page if not */}
+                                <Route path="/" element={<HomeRoute />} />
 
                                 {/* LOGIN */}
                                 <Route path="/login" element={<LoginPage />} />
