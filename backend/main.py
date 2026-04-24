@@ -13,7 +13,6 @@ from chatbot_engine import get_chatbot_response
 
 # Internal modules
 from models import User, Grievance
-# 🟢 Added get_current_admin to imports
 from auth import verify_google_token, create_access_token, get_current_user, get_current_admin, hash_password, verify_password
 import ai_engine
 
@@ -23,11 +22,9 @@ app = FastAPI(title="Jan Samadhan API")
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://db:27017")
 DB_NAME = "jan_samadhan"
 
-
 # ------------------- CORS -------------------
 app.add_middleware(
     CORSMiddleware,
-    # 🟢 FIX: Explicitly list your frontend URLs instead of "*"
     allow_origins=[
         "http://localhost:3000", 
         "http://localhost:3001",
@@ -137,12 +134,10 @@ async def login(email: str = Form(...), password: str = Form(...)):
     }
 
 # ------------------- ADMIN AUTH ROUTES -------------------
-# 🟢 NEW: Dedicated Admin Login Endpoint
 @app.post("/auth/admin/login")
 async def admin_login(email: str = Form(...), password: str = Form(...)):
     user = await db.users.find_one({"email": email})
 
-    # Strict check: Even if the password is right, reject if not an admin
     if not user or not user.get("hashed_password") or user.get("role") != "admin":
         raise HTTPException(status_code=401, detail="Invalid admin credentials")
 
@@ -163,6 +158,14 @@ async def admin_login(email: str = Form(...), password: str = Form(...)):
 async def submit_grievance(
     text: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
+    # 🟢 NEW LOCATION FIELDS ADDED TO THE CORRECT ENDPOINT
+    address: Optional[str] = Form(None),
+    locality: Optional[str] = Form(None),
+    city: Optional[str] = Form(None),
+    state: Optional[str] = Form(None),
+    pincode: Optional[str] = Form(None),
+    lat: Optional[str] = Form(None),
+    lng: Optional[str] = Form(None),
     current_user_email: str = Depends(get_current_user)
 ):
     user = await db.users.find_one({"email": current_user_email})
@@ -209,7 +212,15 @@ async def submit_grievance(
         category=category_clean,
         urgency=analysis_result.urgency if analysis_result else 5,
         english_summary=analysis_result.english_summary if analysis_result else "Summary unavailable",
-        department=assigned_dept
+        department=assigned_dept,
+        # 🟢 LOCATION FIELDS SAVED TO DATABASE
+        address=address,
+        locality=locality,
+        city=city,
+        state=state,
+        pincode=pincode,
+        lat=lat,
+        lng=lng
     )
 
     result = await db.grievances.insert_one(
@@ -246,7 +257,6 @@ async def get_grievances(
     cursor = db.grievances.find(query).sort("created_at", -1)
     grievances = await cursor.to_list(length=100)
     
-    # 🟢 CRITICAL FIX: Convert MongoDB ObjectIds to strings
     for g in grievances:
         g["_id"] = str(g["_id"])
         if "citizen_id" in g:
@@ -257,13 +267,11 @@ async def get_grievances(
     return grievances
 
 # ------------------- ADMIN ROUTES -------------------
-# 🟢 Secured using Depends(get_current_admin)
 @app.get("/admin/view")
 async def admin_view(current_admin_email: str = Depends(get_current_admin)):
     cursor = db.grievances.find().sort("created_at", -1)
     grievances = await cursor.to_list(length=200)
     
-    # 🟢 CRITICAL FIX: Convert MongoDB ObjectIds to strings
     for g in grievances:
         g["_id"] = str(g["_id"])
         if "citizen_id" in g:
@@ -277,7 +285,7 @@ async def admin_view(current_admin_email: str = Depends(get_current_admin)):
 async def update_status(
     grievance_id: str,
     status: str = Form(...),
-    current_admin_email: str = Depends(get_current_admin) # 🟢 Secured!
+    current_admin_email: str = Depends(get_current_admin) 
 ):
     result = await db.grievances.update_one(
         {"_id": ObjectId(grievance_id)},
@@ -290,7 +298,7 @@ async def update_status(
     return {"message": "Status updated successfully"}
 
 @app.get("/stats")
-async def get_stats(current_admin_email: str = Depends(get_current_admin)): # 🟢 Secured!
+async def get_stats(current_admin_email: str = Depends(get_current_admin)): 
     pipeline = [
         {"$group": {"_id": "$category", "count": {"$sum": 1}}}
     ]

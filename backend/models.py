@@ -29,10 +29,19 @@ class Grievance(BaseModel):
     original_text: Optional[str] = None
     english_summary: Optional[str] = None
     category: Optional[str] = "Uncategorized"
-    department: Optional[str] = "General"
+    department: Optional[str] = "General Administration"
     urgency: int = Field(default=5, ge=1, le=10)
     status: str = "Pending"  # Pending, In-Progress, Resolved
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # 🟢 NEW LOCATION FIELDS
+    address: Optional[str] = None
+    locality: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    pincode: Optional[str] = None
+    lat: Optional[str] = None
+    lng: Optional[str] = None
 
     class Config:
         populate_by_name = True
